@@ -21,6 +21,7 @@ export type CaptureSession = {
   stream_url?: string;
   player_url?: string;
   hls_url?: string;
+  working_history?: WorkingHistorySummaryPayload;
 };
 
 export type Recording = {
@@ -32,7 +33,54 @@ export type Recording = {
   duration?: number;
   metadata: RecordingMetadata;
   videoUrl?: string;
+  workingHistory?: WorkingHistorySummary;
   raw: CaptureSession;
+};
+
+export type WorkingHistoryEntryPayload = {
+  source_log_id?: string;
+  source_action_type?: string;
+  start?: number;
+  end?: number;
+  start_label?: string;
+  end_label?: string;
+  app?: string;
+  action?: string;
+  line?: string;
+};
+
+export type WorkingHistorySummaryPayload = {
+  session_id?: string;
+  generated_at?: string | null;
+  source_log_count?: number;
+  entry_count?: number;
+  file_path?: string | null;
+  json_path?: string | null;
+  entries?: WorkingHistoryEntryPayload[];
+  lines?: string[];
+};
+
+export type WorkingHistoryEntry = {
+  sourceLogId?: string;
+  sourceActionType?: string;
+  start?: number;
+  end?: number;
+  startLabel: string;
+  endLabel: string;
+  app: string;
+  action: string;
+  line: string;
+};
+
+export type WorkingHistorySummary = {
+  sessionId?: string;
+  generatedAt?: string;
+  sourceLogCount: number;
+  entryCount: number;
+  filePath?: string;
+  jsonPath?: string;
+  entries: WorkingHistoryEntry[];
+  lines: string[];
 };
 
 export type CaptureStartResponse = {
@@ -70,6 +118,7 @@ export type FinalizeRecordingResponse = {
     duration?: number;
   };
   indexing?: unknown;
+  working_history?: WorkingHistorySummaryPayload;
 };
 
 export type SearchResult = {

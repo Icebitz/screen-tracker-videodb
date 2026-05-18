@@ -1,11 +1,12 @@
 from collections import deque
 from datetime import datetime, timezone
+import os
 from threading import Lock
 from typing import Any
 from uuid import uuid4
 
 
-_LOG_LIMIT = 300
+_LOG_LIMIT = int(os.getenv("SCREEN_TRACKER_LOG_LIMIT", "2000"))
 _logs = deque(maxlen=_LOG_LIMIT)
 _lock = Lock()
 

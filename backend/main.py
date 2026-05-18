@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from typing import Any
 from videodb.exceptions import VideodbError
 from app_state import add_client_log, clear_client_logs, get_client_logs
+from history_summary import get_working_history_summary
 from videodb_client import (
     clear_active_collection,
     create_capture_session,
@@ -89,6 +90,22 @@ async def list_recordings():
 @app.get("/api/recordings/{session_id}")
 async def get_recording(session_id: str):
     return get_capture_session(session_id)
+
+@app.get("/api/recordings/{session_id}/history")
+async def get_recording_history(session_id: str):
+    summary = get_working_history_summary(session_id)
+    if summary:
+        return summary
+    return {
+        "session_id": session_id,
+        "generated_at": None,
+        "source_log_count": 0,
+        "entry_count": 0,
+        "file_path": None,
+        "json_path": None,
+        "entries": [],
+        "lines": [],
+    }
 
 @app.post("/api/recordings/{session_id}/index")
 async def index_recording(session_id: str):

@@ -68,8 +68,9 @@ export default function RecordingsPage() {
         .map((value) => String(value))
         .join(" ")
         .toLowerCase();
+      const history = recording.workingHistory?.lines.join(" ").toLowerCase() || "";
 
-      return `${recording.id} ${recording.title} ${recording.status} ${metadata}`
+      return `${recording.id} ${recording.title} ${recording.status} ${metadata} ${history}`
         .toLowerCase()
         .includes(needle);
     });

@@ -16,6 +16,7 @@ A capture session stays `pending` until the desktop capture client connects with
 - Run a local recorder command that streams the desktop into VideoDB.
 - Finalize recordings for playback and search after the capture stops.
 - Poll VideoDB visual scene indexes for concise screen-action logs.
+- Save per-recording working history summaries as local Markdown and JSON files.
 - Browse recordings, play exported videos, and search indexed content.
 - Clear dashboard logs or reset the active VideoDB collection when needed.
 
@@ -56,9 +57,11 @@ SCREEN_TRACKER_CLIENT_ID=your-stable-client-id
 SCREEN_TRACKER_VERBOSE_EVENTS=false
 SCREEN_TRACKER_FINALIZE_RETRIES=6
 SCREEN_TRACKER_FINALIZE_RETRY_DELAY=5
+SCREEN_TRACKER_HISTORY_DIR=working_history
+SCREEN_TRACKER_LOG_LIMIT=2000
 ```
 
-The backend may write `VIDEO_DB_COLLECTION_ID` back into `backend/.env` after it creates or reuses a collection. It also writes `backend/.exports.json` as a local cache of exported playback metadata.
+The backend may write `VIDEO_DB_COLLECTION_ID` back into `backend/.env` after it creates or reuses a collection. It also writes `backend/.exports.json` as a local cache of exported playback metadata and `backend/working_history/` summaries for completed captures.
 
 Create `frontend/.env.local` if the frontend should call a backend URL other than the local default:
 
@@ -153,6 +156,7 @@ python capture_client.py --session-id <session_id> --client-token <client_token>
 | `POST` | `/api/collection/clear` | Delete the active VideoDB collection and create or reuse a replacement. |
 | `GET` | `/api/recordings` | List capture sessions. |
 | `GET` | `/api/recordings/<session_id>` | Fetch one capture session. |
+| `GET` | `/api/recordings/<session_id>/history` | Fetch the saved working history summary for a session. |
 | `POST` | `/api/recordings/<session_id>/index` | Start audio and visual indexing for a session. |
 | `POST` | `/api/recordings/<session_id>/export` | Export a session for playback. |
 | `POST` | `/api/recordings/<session_id>/finalize` | Export and index a session. |
@@ -161,7 +165,7 @@ python capture_client.py --session-id <session_id> --client-token <client_token>
 
 ## Indexing Notes
 
-While a recording is running, the backend asks VideoDB to index the screen RTStream and polls the VideoDB visual scene index for action descriptions. The dashboard groups those VideoDB-derived screen action logs by client.
+While a recording is running, the backend asks VideoDB to index the screen RTStream and polls the VideoDB visual scene index for action descriptions. The dashboard groups those VideoDB-derived screen action logs by client. After stop/finalize, the backend writes a user-facing working history list to `backend/working_history/<session_id>.md` and exposes the same entries on the recordings page.
 
 This project does not use browser-click tracking or macOS active-window polling. Screen actions come from VideoDB analysis of the recorded screen stream.
 
@@ -184,4 +188,3 @@ npm run lint
 ```
 
 Backend client logs are in memory and reset when the backend restarts. `Clear` only clears the dashboard log buffer. `Clear collection` deletes the active VideoDB collection and should only be used when you want to start from an empty collection.
-

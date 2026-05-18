@@ -6,7 +6,11 @@ import os
 from pathlib import Path
 import threading
 import time
-from app_state import add_client_log
+from app_state import add_client_log, get_client_logs
+from history_summary import (
+    generate_working_history_summary,
+    get_working_history_summary,
+)
 
 load_dotenv()
 conn = videodb.connect(api_key=os.getenv("VIDEO_DB_API_KEY"))
@@ -173,6 +177,34 @@ def _session_client_id(session) -> str | None:
         return metadata.get("client_id")
     return None
 
+def _session_metadata(session) -> dict:
+    metadata = getattr(session, "metadata", {}) or {}
+    return metadata if isinstance(metadata, dict) else {}
+
+def _refresh_working_history_summary(
+    session_id: str,
+    *,
+    recording_metadata: dict | None = None,
+) -> dict | None:
+    try:
+        logs = get_client_logs(limit=10000, session_id=session_id)
+        return generate_working_history_summary(
+            session_id,
+            logs,
+            recording_metadata=recording_metadata or {},
+            merge_existing=True,
+        )
+    except Exception as exc:
+        add_client_log(
+            "Working history summary update failed",
+            level="warning",
+            source="backend",
+            session_id=session_id,
+            action_type="working_history_summary_failed",
+            payload={"error": str(exc)},
+        )
+        return None
+
 def _is_screen_rtstream(stream) -> bool:
     channel_id = (getattr(stream, "channel_id", None) or "").lower()
     stream_name = (getattr(stream, "name", None) or "").lower()
@@ -243,6 +275,7 @@ def _add_screen_action_log(
             "raw": scene,
         },
     )
+    _refresh_working_history_summary(session_id)
 
 def _poll_screen_action_index(
     *,
@@ -325,6 +358,7 @@ def _poll_screen_action_index(
         action_type="screen_action_polling_stopped",
         payload={"rtstream_id": rtstream_id, "scene_index_id": index_id},
     )
+    _refresh_working_history_summary(session_id)
 
 def _start_screen_action_poller(
     *,
@@ -402,6 +436,7 @@ def serialize_capture_session(session, export_data: dict | None = None):
         "playback_url": stream_url,
         "player_url": player_url,
         "export": export_data,
+        "working_history": get_working_history_summary(session.id),
         "rtstreams": [
             _serialize_rtstream(stream)
             for stream in getattr(session, "rtstreams", [])
@@ -494,10 +529,21 @@ def _get_or_create_screen_action_index(stream):
 def finalize_capture_session(session_id: str):
     export_result = export_capture_session(session_id)
     index_result = start_capture_session_indexing(session_id)
+    recording_metadata = {}
+    recording = export_result.get("recording")
+    if isinstance(recording, dict):
+        recording_metadata = recording.get("metadata") or {}
+    summary = _refresh_working_history_summary(
+        session_id,
+        recording_metadata=recording_metadata,
+    )
+    if summary and isinstance(recording, dict):
+        recording["working_history"] = summary
 
     return {
         **export_result,
         "indexing": index_result,
+        "working_history": summary,
     }
 
 def start_capture_session_indexing(session_id: str):

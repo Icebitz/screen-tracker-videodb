@@ -1,8 +1,16 @@
 from fastapi import APIRouter, Request
-from app_state import add_client_log
+from app_state import add_client_log, get_client_logs
+from history_summary import generate_working_history_summary
 from videodb_client import start_capture_session_indexing
 
 router = APIRouter()
+
+TERMINAL_EVENT_TOKENS = ("complete", "completed", "stop", "stopped", "ended", "failed")
+
+
+def _is_terminal_capture_event(event: str | None) -> bool:
+    normalized = (event or "").lower()
+    return any(token in normalized for token in TERMINAL_EVENT_TOKENS)
 
 @router.post("/webhooks/videodb")
 async def videodb_webhook(request: Request):
@@ -32,6 +40,14 @@ async def videodb_webhook(request: Request):
             session_id=session_id,
             client_id=client_id,
             action_type="indexing_started",
+        )
+
+    if session_id and _is_terminal_capture_event(event):
+        generate_working_history_summary(
+            session_id,
+            get_client_logs(limit=10000, session_id=session_id),
+            recording_metadata=metadata if isinstance(metadata, dict) else {},
+            merge_existing=True,
         )
     
     return {"status": "received"}

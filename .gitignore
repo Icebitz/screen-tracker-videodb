@@ -37,6 +37,7 @@ pnpm-debug.log*
 
 # Project-local generated state
 backend/.exports.json
+backend/working_history/
 
 # OS and editor files
 .DS_Store

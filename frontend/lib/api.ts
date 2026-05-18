@@ -9,6 +9,9 @@ import type {
   Recording,
   RecordingMetadata,
   SearchResult,
+  WorkingHistoryEntry,
+  WorkingHistorySummary,
+  WorkingHistorySummaryPayload,
 } from "@/types";
 
 const api = axios.create({
@@ -89,6 +92,52 @@ export const getRecordingTitle = (recording: CaptureSession): string => {
   );
 };
 
+const normalizeWorkingHistory = (
+  summary: unknown,
+): WorkingHistorySummary | undefined => {
+  if (!isRecord(summary)) {
+    return undefined;
+  }
+
+  const payload = summary as WorkingHistorySummaryPayload;
+  const entries: WorkingHistoryEntry[] = Array.isArray(payload.entries)
+    ? payload.entries.map((entry) => {
+        const startLabel = stringValue(entry.start_label) || "Unknown";
+        const endLabel = stringValue(entry.end_label) || startLabel;
+        const app = stringValue(entry.app) || "Screen";
+        const action = stringValue(entry.action) || "Activity recorded";
+        const line =
+          stringValue(entry.line) ||
+          `[${startLabel} - ${endLabel}]: [${app}] : ${action}`;
+
+        return {
+          sourceLogId: stringValue(entry.source_log_id),
+          sourceActionType: stringValue(entry.source_action_type),
+          start: numberValue(entry.start),
+          end: numberValue(entry.end),
+          startLabel,
+          endLabel,
+          app,
+          action,
+          line,
+        };
+      })
+    : [];
+
+  return {
+    sessionId: stringValue(payload.session_id),
+    generatedAt: stringValue(payload.generated_at),
+    sourceLogCount: numberValue(payload.source_log_count) || 0,
+    entryCount: numberValue(payload.entry_count) || entries.length,
+    filePath: stringValue(payload.file_path),
+    jsonPath: stringValue(payload.json_path),
+    entries,
+    lines: Array.isArray(payload.lines)
+      ? payload.lines.map(String)
+      : entries.map((entry) => entry.line),
+  };
+};
+
 export const normalizeRecording = (recording: CaptureSession): Recording | null => {
   const id = getRecordingId(recording);
 
@@ -110,6 +159,7 @@ export const normalizeRecording = (recording: CaptureSession): Recording | null 
     duration: numberValue(recording.duration),
     metadata,
     videoUrl: getRecordingVideoUrl(recording),
+    workingHistory: normalizeWorkingHistory(recording.working_history),
     raw: recording,
   };
 };
